@@ -41,7 +41,7 @@ inline static void rename_tmp_folder() {
     std::string oldPath = userPath + "tmp";
     std::string newPath = userPath + TMP_DIRECTORY;
     if (fs::exists(oldPath) && !fs::exists(newPath)) {
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(TARGET_UWP)
         SetFileAttributesA(oldPath.c_str(), FILE_ATTRIBUTE_HIDDEN);
 #endif
         fs::rename(oldPath, newPath);

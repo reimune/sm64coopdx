@@ -221,22 +221,27 @@ static void select_graphics_backend(void) {
         return;
     }
 
-#if defined(_WIN32)
+#if defined(TARGET_UWP)
+    // UWP/Xbox only has the D3D11 path; no OpenGL probing.
+    configGraphicsBackend = GAPI_D3D11;
+#elif defined(_WIN32)
     if (configGraphicsBackend == GAPI_GL && !gfx_sdl_check_opengl_compatibility()) {
         configGraphicsBackend = GAPI_D3D11;
     }
 #endif
     int backend = configGraphicsBackend;
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(TARGET_UWP)
     if (gCLIOpts.backend != -1) { backend = gCLIOpts.backend; }
 #endif
 
     switch (backend) {
+#if !defined(TARGET_UWP)
         case GAPI_GL:
             gWindowApi = &gfx_sdl;
             gRenderApi = &gfx_opengl_api;
             gAudioApi  = &audio_sdl;
             break;
+#endif
 #if defined(_WIN32)
         case GAPI_D3D11:
             gWindowApi = &gfx_dxgi;
@@ -245,8 +250,13 @@ static void select_graphics_backend(void) {
             break;
 #endif
         default:
+#if defined(TARGET_UWP)
+            gWindowApi = &gfx_dxgi;
+            gRenderApi = &gfx_direct3d11_api;
+#else
             gWindowApi = &gfx_sdl;
             gRenderApi = &gfx_opengl_api;
+#endif
             gAudioApi  = &audio_sdl;
             break;
     }

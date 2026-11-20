@@ -5,7 +5,9 @@
 #include <cmath>
 
 #include <windows.h>
+#ifndef TARGET_UWP
 #include <versionhelpers.h>
+#endif
 #include <wrl/client.h>
 
 #include <dxgi1_3.h>
@@ -36,6 +38,12 @@ extern "C" {
 #include "gfx_screen_config.h"
 
 #define DEBUG_D3D 0
+
+#ifdef TARGET_UWP
+// No message boxes on UWP: log shader compile errors to stderr instead.
+// The macro drops its other arguments, so MB_* constants are never evaluated.
+#define MessageBox(hwnd, text, caption, type) fprintf(stderr, "%s: %s\n", caption, text)
+#endif
 
 using namespace Microsoft::WRL; // For ComPtr
 
@@ -161,8 +169,16 @@ static void create_render_target_views(bool is_resize) {
         // Resize swap chain buffers
 
         ThrowIfFailed(d3d.swap_chain->GetDesc1(&desc1));
+#ifdef TARGET_UWP
+        // A CoreWindow swap chain gets its size from the window layer.
+        uint32_t new_width, new_height;
+        gfx_dxgi_get_window_pixel_size(&new_width, &new_height);
+        ThrowIfFailed(d3d.swap_chain->ResizeBuffers(0, new_width, new_height, DXGI_FORMAT_UNKNOWN, desc1.Flags),
+                      gfx_dxgi_get_h_wnd(), "Failed to resize IDXGISwapChain buffers.");
+#else
         ThrowIfFailed(d3d.swap_chain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, desc1.Flags),
                       gfx_dxgi_get_h_wnd(), "Failed to resize IDXGISwapChain buffers.");
+#endif
     }
 
     // Get new size
@@ -206,6 +222,19 @@ static void create_render_target_views(bool is_resize) {
 }
 
 static void gfx_d3d11_init(void) {
+#ifdef TARGET_UWP
+    // d3d11.lib is linked directly; system DLLs can't be loaded with LoadLibrary on UWP.
+    d3d.d3d11_module = nullptr;
+    d3d.D3D11CreateDevice = D3D11CreateDevice;
+
+    // Shaders are generated per color-combiner at runtime, so a compiler is still needed.
+    // Ship d3dcompiler_47.dll (from the Windows SDK Redist\D3D\x64 folder) inside the package.
+    d3d.d3dcompiler_module = LoadPackagedLibrary(L"d3dcompiler_47.dll", 0);
+    if (d3d.d3dcompiler_module == nullptr) {
+        ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()), gfx_dxgi_get_h_wnd(), "d3dcompiler_47.dll is missing from the app package");
+    }
+    d3d.D3DCompile = (pD3DCompile)GetProcAddress(d3d.d3dcompiler_module, "D3DCompile");
+#else
     // Load d3d11.dll
     d3d.d3d11_module = LoadLibraryW(L"d3d11.dll");
     if (d3d.d3d11_module == nullptr) {
@@ -222,6 +251,7 @@ static void gfx_d3d11_init(void) {
         }
     }
     d3d.D3DCompile = (pD3DCompile)GetProcAddress(d3d.d3dcompiler_module, "D3DCompile");
+#endif
 
     // Create D3D11 device
 

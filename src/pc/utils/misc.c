@@ -16,6 +16,9 @@
 #include <windows.h>
 #include <direct.h>
 #endif
+#ifdef TARGET_UWP
+#include <SDL2/SDL.h>
+#endif
 #include <ctype.h>
 
 #include "misc.h"
@@ -628,7 +631,10 @@ static s8 launch(const char* program, const char* arg) {
 
 
 void open_url(const char* url) {
-#if defined(_WIN32) || defined(_WIN64) // windows
+#if defined(TARGET_UWP)
+    SDL_OpenURL(url);
+
+#elif defined(_WIN32) || defined(_WIN64) // windows
     ShellExecuteA(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
 
 #elif __linux__ // linux
@@ -641,7 +647,10 @@ void open_url(const char* url) {
 }
 
 void open_folder(const char* path) {
-#if defined(_WIN32) || defined(_WIN64) // windows
+#if defined(TARGET_UWP)
+    (void)path; // no file manager to open on Xbox
+
+#elif defined(_WIN32) || defined(_WIN64) // windows
     _mkdir(path);
     ShellExecuteA(NULL, "open", path, NULL, NULL, SW_SHOWNORMAL);
 

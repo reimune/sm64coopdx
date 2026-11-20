@@ -7,8 +7,12 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#ifndef TARGET_UWP
 #include <shlobj.h>
 #include <shlwapi.h>
+#else
+#include <SDL2/SDL.h>
+#endif
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #else
@@ -121,6 +125,10 @@ static wchar_t *sys_windows_pathname_get_delim(const wchar_t *name)
 
 bool sys_windows_short_path_from_wcs(char *destPath, size_t destSize, const wchar_t *wcsLongPath)
 {
+#ifdef TARGET_UWP
+    // GetShortPathNameW is not available to UWP apps; keep the long path as UTF-8.
+    return (WideCharToMultiByte(CP_UTF8, 0, wcsLongPath, (-1), destPath, (int)destSize, NULL, NULL) > 0);
+#else
     wchar_t wcsShortPath[SYS_MAX_PATH]; // converted with WinAPI
     wchar_t wcsPortablePath[SYS_MAX_PATH]; // non-unicode parts replaced back with long forms
 
@@ -185,6 +193,7 @@ bool sys_windows_short_path_from_wcs(char *destPath, size_t destSize, const wcha
 
     // Short Path can be safely represented by the US-ASCII Charset.
     return (WideCharToMultiByte(CP_ACP, 0, wcsPortablePath, (-1), destPath, destSize, NULL, NULL) > 0);
+#endif // TARGET_UWP
 }
 
 bool sys_windows_short_path_from_mbs(char *destPath, size_t destSize, const char *mbsLongPath)
@@ -202,6 +211,63 @@ bool sys_windows_short_path_from_mbs(char *destPath, size_t destSize, const char
 
     return false;
 }
+
+#ifdef TARGET_UWP
+
+const char *sys_user_path(void)
+{
+    // SDL returns the app's writable local folder on WinRT.
+    static char path[SYS_MAX_PATH] = { 0 };
+    if ('\0' != path[0]) { return path; }
+
+    char *sdlPath = SDL_GetPrefPath("", "sm64coopdx");
+    if (NULL == sdlPath) { return NULL; }
+
+    strncpy(path, sdlPath, SYS_MAX_PATH - 1);
+    SDL_free(sdlPath);
+
+    // strip the trailing separator
+    const unsigned int len = strlen(path);
+    if (len > 0 && (path[len-1] == '\\' || path[len-1] == '/')) { path[len-1] = 0; }
+
+    return path;
+}
+
+const char *sys_resource_path(void) {
+    return sys_exe_path_dir();
+}
+
+const char *sys_exe_path_dir(void)
+{
+    // The package install folder (read-only). Mods, lang and other bundled content live here.
+    static char path[SYS_MAX_PATH] = { 0 };
+    if ('\0' != path[0]) { return path; }
+
+    char *base = SDL_GetBasePath();
+    if (NULL == base) { return path; }
+
+    strncpy(path, base, SYS_MAX_PATH - 1);
+    SDL_free(base);
+
+    const unsigned int len = strlen(path);
+    if (len > 0 && (path[len-1] == '\\' || path[len-1] == '/')) { path[len-1] = 0; }
+
+    return path;
+}
+
+const char *sys_exe_path_file(void)
+{
+    // There is no meaningful exe file path on UWP; return the package folder.
+    return sys_exe_path_dir();
+}
+
+static void sys_fatal_impl(const char *msg) {
+    fprintf(stderr, "FATAL ERROR:\n%s\n", msg);
+    fflush(stderr);
+    exit(1);
+}
+
+#else // !TARGET_UWP
 
 const char *sys_user_path(void)
 {
@@ -291,6 +357,8 @@ static void sys_fatal_impl(const char *msg) {
     fflush(stderr);
     exit(1);
 }
+
+#endif // TARGET_UWP
 
 #else
 

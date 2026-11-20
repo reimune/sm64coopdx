@@ -119,7 +119,7 @@ static void controller_sdl_init(void) {
         return;
     }
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(TARGET_UWP)
     extern void WIN_UpdateKeymap(void);
     WIN_UpdateKeymap();
 #endif

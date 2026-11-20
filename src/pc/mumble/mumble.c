@@ -30,7 +30,9 @@ s16 sPrevCheckArea;
 
 void mumble_init(void) {
 
-#ifdef _WIN32
+#if defined(TARGET_UWP)
+	return; // Mumble positional audio link is not available on UWP
+#elif defined(_WIN32)
 	HANDLE hMapObject = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, L"MumbleLink");
 	if (hMapObject == NULL)
 		return;

@@ -9,6 +9,9 @@ Microsoft::WRL::ComPtr<IDXGISwapChain1> gfx_dxgi_create_swap_chain(IUnknown *dev
 extern "C" HWND gfx_dxgi_get_h_wnd(void);
 void ThrowIfFailed(HRESULT res);
 void ThrowIfFailed(HRESULT res, HWND h_wnd, const char *message);
+#ifdef TARGET_UWP
+void gfx_dxgi_get_window_pixel_size(uint32_t *width, uint32_t *height);
+#endif
 #endif
 
 extern struct GfxWindowManagerAPI gfx_dxgi;

@@ -1,4 +1,4 @@
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(TARGET_UWP)
 
 #include <stdint.h>
 #include <math.h>

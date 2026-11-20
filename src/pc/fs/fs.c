@@ -292,6 +292,24 @@ bool fs_sys_filename_is_portable(char const *filename) {
 
 /* these operate on the real file system */
 
+#ifdef TARGET_UWP
+// UWP only exposes the wide-char attribute APIs.
+static bool fs_uwp_get_attribute_data(const char *name, WIN32_FILE_ATTRIBUTE_DATA *out) {
+    WCHAR wide[MAX_PATH];
+    if (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide, MAX_PATH) <= 0) { return false; }
+    return GetFileAttributesExW(wide, GetFileExInfoStandard, out) != 0;
+}
+
+static DWORD fs_uwp_get_attributes(const char *name) {
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    if (!fs_uwp_get_attribute_data(name, &data)) { return INVALID_FILE_ATTRIBUTES; }
+    return data.dwFileAttributes;
+}
+
+#define GetFileAttributesA fs_uwp_get_attributes
+#define GetFileAttributesExA(path, level, out) fs_uwp_get_attribute_data((path), (out))
+#endif
+
 bool fs_sys_path_exists(const char *name) {
 #ifdef _WIN32
     return GetFileAttributesA(name) != INVALID_FILE_ATTRIBUTES;

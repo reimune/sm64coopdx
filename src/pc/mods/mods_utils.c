@@ -6,7 +6,9 @@
 
 #if defined(_WIN32)
 #include <windows.h>
+#ifndef TARGET_UWP
 #include <winuser.h>
+#endif
 #else
 #include <unistd.h>
 #endif
